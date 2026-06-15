@@ -121,11 +121,11 @@ for i, product in enumerate(filtered):
 # ------------------------------------------------
 # Floating Support Button
 # ------------------------------------------------
+# ------------------------------------------------
+# Floating Support Button
+# ------------------------------------------------
 
-st.markdown("""
-<div class="support-btn">
-<a href="/Support_Chatbot" target="_self">
-💬 Support
-</a>
-</div>
-""", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
+
+if st.button("💬 Support Chatbot"):
+    st.switch_page("pages/1_Support_Chatbot.py")

@@ -16,7 +16,11 @@ st.title("💬 MiniStore AI Support Assistant")
 # ---------------------------------------------------
 # OPENAI CLIENT
 # ---------------------------------------------------
-
+if "OPENAI_API_KEY" not in st.secrets:
+    st.error(
+        "OPENAI_API_KEY not found in .streamlit/secrets.toml"
+    )
+    st.stop()
 client = OpenAI(
     api_key=st.secrets["OPENAI_API_KEY"]
 )
@@ -84,7 +88,16 @@ Rules:
 # ---------------------------------------------------
 
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    st.session_state.messages = [
+        {
+            "role": "assistant",
+            "content": (
+                "Hello! 👋 Welcome to MiniStore Support.\n\n"
+                "I can help with products, orders, delivery, "
+                "refunds, returns, and payments."
+            )
+        }
+    ]
 
 # ---------------------------------------------------
 # DISPLAY CHAT HISTORY

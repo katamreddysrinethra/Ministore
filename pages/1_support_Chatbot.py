@@ -1,148 +1,157 @@
 import streamlit as st
+from openai import OpenAI
 from data.products import products
 
+# ---------------------------------------------------
+# PAGE CONFIG
+# ---------------------------------------------------
+
 st.set_page_config(
-    page_title="Support Chatbot",
+    page_title="MiniStore Support",
     page_icon="💬"
 )
 
-st.title("💬 MiniStore Support Assistant")
+st.title("💬 MiniStore AI Support Assistant")
 
-# ------------------------------------------
-# Chat History
-# ------------------------------------------
+# ---------------------------------------------------
+# OPENAI CLIENT
+# ---------------------------------------------------
+
+client = OpenAI(
+    api_key=st.secrets["OPENAI_API_KEY"]
+)
+
+# ---------------------------------------------------
+# BUILD PRODUCT CATALOG
+# ---------------------------------------------------
+
+catalog = ""
+
+for product in products:
+    catalog += f"""
+Product Name: {product['name']}
+Price: ${product['price']}
+Category: {product['category']}
+Description: {product['description']}
+
+"""
+
+# ---------------------------------------------------
+# SYSTEM PROMPT
+# ---------------------------------------------------
+
+SYSTEM_PROMPT = f"""
+You are MiniStore's professional customer support representative.
+
+Your job is to help customers with:
+
+- Products
+- Orders
+- Delivery
+- Shipping
+- Refunds
+- Returns
+- Payments
+- Store policies
+
+MiniStore Product Catalog:
+
+{catalog}
+
+Rules:
+
+1. Only answer questions related to MiniStore.
+2. Use the product catalog when answering product questions.
+3. Be professional, friendly, and concise.
+4. If the user asks unrelated questions such as:
+   - coding
+   - mathematics
+   - politics
+   - celebrities
+   - general knowledge
+   - personal advice
+
+   politely respond:
+
+   "I'm MiniStore's support assistant and can only help with products, orders, delivery, refunds, returns, payments, and other store-related questions."
+
+5. Never pretend to know order information that was not provided.
+6. If a customer asks about order status, ask for an order ID.
+"""
+
+# ---------------------------------------------------
+# CHAT HISTORY
+# ---------------------------------------------------
 
 if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {
-            "role":"assistant",
-            "content":"Hello! I'm MiniStore Support. How can I help you today?"
-        }
-    ]
+    st.session_state.messages = []
 
-for msg in st.session_state.messages:
+# ---------------------------------------------------
+# DISPLAY CHAT HISTORY
+# ---------------------------------------------------
 
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-# ------------------------------------------
-# Rule Based Bot
-# ------------------------------------------
-
-def generate_response(user_input):
-
-    text = user_input.lower()
-
-    # Product Search
-
-    for product in products:
-
-        if product["name"].lower() in text:
-
-            return (
-                f"📦 {product['name']}\n\n"
-                f"Price: ${product['price']}\n\n"
-                f"{product['description']}"
-            )
-
-    # Product Questions
-
-    if "product" in text:
-        names = [p["name"] for p in products]
-
-        return (
-            "We currently sell:\n\n- "
-            + "\n- ".join(names)
-        )
-
-    # Delivery
-
-    elif any(word in text for word in [
-        "delivery",
-        "shipping",
-        "when will it arrive"
-    ]):
-
-        return (
-            "🚚 Standard delivery takes 3-5 business days. "
-            "Express delivery takes 1-2 business days."
-        )
-
-    # Refunds
-
-    elif "refund" in text:
-
-        return (
-            "💰 Refunds are processed within 5-7 business days after approval."
-        )
-
-    # Returns
-
-    elif "return" in text:
-
-        return (
-            "↩️ Products can be returned within 30 days of delivery."
-        )
-
-    # Payment
-
-    elif any(word in text for word in [
-        "payment",
-        "upi",
-        "card",
-        "credit card",
-        "debit card"
-    ]):
-
-        return (
-            "💳 We accept UPI, Credit Cards, Debit Cards, Net Banking, and Wallets."
-        )
-
-    # Order Status
-
-    elif any(word in text for word in [
-        "order status",
-        "track order",
-        "where is my order"
-    ]):
-
-        return (
-            "📦 Please provide your Order ID. "
-            "For this demo, all orders are currently marked as 'In Transit'."
-        )
-
-    return (
-        "I'm here to help with products, orders, delivery, returns, refunds, and payments."
-    )
-
-# ------------------------------------------
-# User Input
-# ------------------------------------------
+# ---------------------------------------------------
+# CHAT INPUT
+# ---------------------------------------------------
 
 prompt = st.chat_input(
-    "Ask something about products, delivery, refunds..."
+    "Ask about products, orders, delivery, refunds..."
 )
 
 if prompt:
 
+    # Add user message
     st.session_state.messages.append(
         {
-            "role":"user",
-            "content":prompt
+            "role": "user",
+            "content": prompt
         }
     )
 
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    response = generate_response(prompt)
+    # Build conversation history
+    messages = [
+        {
+            "role": "system",
+            "content": SYSTEM_PROMPT
+        }
+    ]
 
+    messages.extend(st.session_state.messages)
+
+    try:
+
+        response = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=messages,
+            temperature=0.3,
+            max_tokens=500
+        )
+
+        assistant_reply = response.choices[0].message.content
+
+    except Exception as e:
+
+        assistant_reply = f"""
+❌ Error connecting to OpenAI.
+
+Details:
+{str(e)}
+"""
+
+    # Save assistant response
     st.session_state.messages.append(
         {
-            "role":"assistant",
-            "content":response
+            "role": "assistant",
+            "content": assistant_reply
         }
     )
 
     with st.chat_message("assistant"):
-        st.markdown(response)
+        st.markdown(assistant_reply)
